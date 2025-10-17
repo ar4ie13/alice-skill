@@ -2,16 +2,17 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"strings"
 
 	"github.com/ar4ie13/alice-skill/internal/logger"
+	"github.com/ar4ie13/alice-skill/internal/store/pg"
 	"go.uber.org/zap"
 )
 
 // функция main вызывается автоматически при запуске приложения
 func main() {
-	// обрабатываем аргументы командной строки
 	parseFlags()
 
 	if err := run(); err != nil {
@@ -24,8 +25,14 @@ func run() error {
 		return err
 	}
 
-	// создаём экземпляр приложения, пока без внешней зависимости хранилища сообщений
-	appInstance := newApp(nil)
+	// создаём соединение с СУБД PostgreSQL с помощью аргумента командной строки
+	conn, err := sql.Open("pgx", flagDatabaseURI)
+	if err != nil {
+		return err
+	}
+
+	// создаём экземпляр приложения, передавая реализацию хранилища pg в качестве внешней зависимости
+	appInstance := newApp(pg.NewStore(conn))
 
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 	// обернём хендлер webhook в middleware с логированием и поддержкой gzip
